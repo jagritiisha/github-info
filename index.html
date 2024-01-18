@@ -1,0 +1,172 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Profile with Pagination and Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap");
+      body {
+        font-family: "Open Sans", sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <div class="max-w-4xl mx-auto p-5">
+      <div id="userProfile">
+        <!-- User profile will be loaded here -->
+      </div>
+      <div class="flex justify-between items-center mt-8">
+        <!-- Added margin-top (mt-8) here -->
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search Repositories..."
+          class="p-2 border rounded"
+          onkeyup="filterRepos()"
+        />
+        <select
+          id="perPageSelect"
+          class="p-2 border rounded"
+          onchange="changeReposPerPage()"
+        >
+          <option value="10">10 per page</option>
+          <option value="30">30 per page</option>
+          <option value="50">50 per page</option>
+          <option value="70">70 per page</option>
+          <option value="90">90 per page</option>
+          <option value="100">100 per page</option>
+        </select>
+      </div>
+      <div id="profile">
+        <!-- Repositories will be loaded here -->
+      </div>
+      <div id="pagination" class="mt-6 flex justify-center">
+        <!-- Pagination will be loaded here -->
+      </div>
+    </div>
+    <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      const username = urlParams.get("username");
+      const userProfileContainer = document.getElementById("userProfile");
+      const profileContainer = document.getElementById("profile");
+      const paginationContainer = document.getElementById("pagination");
+      const searchInput = document.getElementById("searchInput");
+      const perPageSelect = document.getElementById("perPageSelect");
+      let allRepos = [];
+      let currentPage = 1;
+      let reposPerPage = parseInt(perPageSelect.value, 10); // Default number of repos per page
+
+      async function fetchGitHubProfile(username) {
+        try {
+          const userResponse = await fetch(
+            `https://api.github.com/users/${username}`
+          );
+          const userData = await userResponse.json();
+
+          const reposResponse = await fetch(userData.repos_url);
+          allRepos = await reposResponse.json();
+
+          displayUserProfile(userData);
+          displayRepos();
+          setupPagination();
+        } catch (error) {
+          console.error("Fetching GitHub data failed:", error);
+        }
+      }
+
+      function displayUserProfile(userData) {
+        const userProfileHTML = `
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+          <div class="flex items-center space-x-5">
+            <div class="flex-shrink-0">
+              <img alt="Profile image for ${userData.name}" class="rounded-full border border-gray-300" src="${userData.avatar_url}" width="150" height="150"/>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">${userData.name}</h2>
+              <div class="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+                <div class="mt-2 flex items-center text-sm text-gray-500">
+                  <i class="fas fa-map-marker-alt fa-fw text-gray-400"></i>
+                  ${userData.location}
+                </div>
+                <div class="mt-2 flex items-center text-sm text-gray-500">
+                  <i class="fas fa-link fa-fw text-gray-400"></i>
+                  <a class="underline" href="${userData.html_url}">${userData.html_url}</a>
+                </div>
+                <div class="mt-2 flex items-center text-sm text-gray-500">
+                  <i class="fab fa-twitter fa-fw text-gray-400"></i>
+                  <a class="underline" href="https://twitter.com/${userData.twitter_username}">https://twitter.com/${userData.twitter_username}</a>
+                </div>
+              </div>
+              <div class="mt-2 text-sm text-gray-500">${userData.bio}</div>
+            </div>
+          </div>
+        </div>
+      `;
+        userProfileContainer.innerHTML = userProfileHTML;
+      }
+
+      function displayRepos(repos = allRepos) {
+        const startIndex = (currentPage - 1) * reposPerPage;
+        const endIndex = startIndex + reposPerPage;
+        const paginatedRepos = repos.slice(startIndex, endIndex);
+
+        const reposHTML = paginatedRepos
+          .map(
+            (repo) => `
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
+          <h3 class="text-lg font-semibold">${repo.name}</h3>
+          <p class="mt-1 text-sm text-gray-600">${repo.description}</p>
+          <div class="mt-2">
+            <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 rounded-full">${repo.language}</span>
+          </div>
+        </div>
+      `
+          )
+          .join("");
+
+        profileContainer.innerHTML = reposHTML;
+      }
+
+      function setupPagination(repos = allRepos) {
+        const pageCount = Math.ceil(repos.length / reposPerPage);
+        let paginationHTML = "";
+
+        for (let i = 1; i <= pageCount; i++) {
+          paginationHTML += `<button class="px-3 py-2 border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 ${
+            i === currentPage ? "bg-gray-200" : ""
+          }" onclick="changePage(${i})">${i}</button>`;
+        }
+
+        paginationContainer.innerHTML = paginationHTML;
+      }
+
+      function changePage(pageNumber) {
+        currentPage = pageNumber;
+        displayRepos();
+        setupPagination();
+      }
+
+      function filterRepos() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const filteredRepos = allRepos.filter((repo) =>
+          repo.name.toLowerCase().includes(searchTerm)
+        );
+        displayRepos(filteredRepos);
+        setupPagination(filteredRepos);
+      }
+      function changeReposPerPage() {
+        reposPerPage = parseInt(perPageSelect.value, 10);
+        currentPage = 1; // Reset to first page
+        displayRepos();
+        setupPagination();
+      }
+
+      fetchGitHubProfile(username);
+    </script>
+  </body>
+</html>
