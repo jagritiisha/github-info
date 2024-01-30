@@ -1,4 +1,4 @@
-# Fyle Assignment
+# GitHub user-info
 
 ## Problem Statement
 Display a GitHub user's profile, including their repositories with the functionality to paginate and search through them.
